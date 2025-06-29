@@ -34,7 +34,7 @@ public class ModernFixOptionInfoScreen extends Screen {
 
     private void drawMultilineString(GuiGraphics guiGraphics, Font fr, Component str, int x, int y) {
         for(FormattedCharSequence s : fr.split(str, this.width - 50)) {
-            guiGraphics.drawString(fr, s, x, y, 16777215, true);
+            guiGraphics.drawString(fr, s, x, y, 0xFFFFFFFF, true);
             y += fr.lineHeight;
         }
     }
@@ -42,7 +42,7 @@ public class ModernFixOptionInfoScreen extends Screen {
     @Override
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTicks) {
         super.render(guiGraphics, mouseX, mouseY, partialTicks);
-        guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 8, 16777215);
+        guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 8, 0xFFFFFFFF);
         this.drawMultilineString(guiGraphics, this.minecraft.font, description, 10, 50);
     }
 }
