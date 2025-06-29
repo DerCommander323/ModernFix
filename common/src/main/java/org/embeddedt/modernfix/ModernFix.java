@@ -48,7 +48,7 @@ public class ModernFix {
 
     public ModernFix() {
         INSTANCE = this;
-        if(ModernFixMixinPlugin.instance.isOptionEnabled("feature.snapshot_easter_egg.NameChange") && !SharedConstants.getCurrentVersion().isStable())
+        if(ModernFixMixinPlugin.instance.isOptionEnabled("feature.snapshot_easter_egg.NameChange") && !SharedConstants.getCurrentVersion().stable())
             NAME = "PreemptiveFix";
         ModernFixPlatformHooks.INSTANCE.onServerCommandRegister(ModernFixCommands::register);
     }
