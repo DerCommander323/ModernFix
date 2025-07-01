@@ -1,12 +1,12 @@
 package org.embeddedt.modernfix.common.mixin.feature.mcfunction_profiling;
 
-/* TODO: Remove or reimplement
 import com.google.common.base.Stopwatch;
 import com.llamalad7.mixinextras.sugar.Local;
 import com.llamalad7.mixinextras.sugar.Share;
 import com.llamalad7.mixinextras.sugar.ref.LocalRef;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
-import net.minecraft.commands.CommandFunction;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.commands.functions.CommandFunction;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.ServerFunctionManager;
 import org.embeddedt.modernfix.duck.IProfilingServerFunctionManager;
@@ -30,22 +30,22 @@ public class ServerFunctionManagerMixin implements IProfilingServerFunctionManag
     private final Map<ResourceLocation, Stopwatch> mfix$functionWatches = new Object2ObjectOpenHashMap<>();
 
     @Inject(method = "executeTagFunctions", at = @At("HEAD"))
-    private void resetWatches(Collection<CommandFunction> functionObjects, ResourceLocation identifier, CallbackInfo ci) {
+    private void resetWatches(Collection<CommandFunction<CommandSourceStack>> functionObjects, ResourceLocation identifier, CallbackInfo ci) {
         mfix$functionWatches.values().forEach(Stopwatch::reset);
     }
 
-    @Inject(method = "executeTagFunctions", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/ServerFunctionManager;execute(Lnet/minecraft/commands/CommandFunction;Lnet/minecraft/commands/CommandSourceStack;)I"))
-    private void startWatch(Collection<CommandFunction> functionObjects, ResourceLocation identifier, CallbackInfo ci, @Local(ordinal = 0) CommandFunction function, @Share("stopwatch") LocalRef<Stopwatch> watchRef) {
+    @Inject(method = "executeTagFunctions", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/ServerFunctionManager;execute(Lnet/minecraft/commands/functions/CommandFunction;Lnet/minecraft/commands/CommandSourceStack;)V"))
+    private void startWatch(Collection<CommandFunction<CommandSourceStack>> functionObjects, ResourceLocation identifier, CallbackInfo ci, @Local(ordinal = 0) CommandFunction<CommandSourceStack> function, @Share("stopwatch") LocalRef<Stopwatch> watchRef) {
         watchRef.set(null);
         if (identifier == TICK_FUNCTION_TAG) {
-            var watch = mfix$functionWatches.computeIfAbsent(function.getId(), i -> Stopwatch.createUnstarted());
+            var watch = mfix$functionWatches.computeIfAbsent(function.id(), i -> Stopwatch.createUnstarted());
             watch.start();
             watchRef.set(watch);
         }
     }
 
-    @Inject(method = "executeTagFunctions", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/ServerFunctionManager;execute(Lnet/minecraft/commands/CommandFunction;Lnet/minecraft/commands/CommandSourceStack;)I", shift = At.Shift.AFTER))
-    private void stopWatch(Collection<CommandFunction> functionObjects, ResourceLocation identifier, CallbackInfo ci, @Share("stopwatch") LocalRef<Stopwatch> watchRef) {
+    @Inject(method = "executeTagFunctions", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/ServerFunctionManager;execute(Lnet/minecraft/commands/functions/CommandFunction;Lnet/minecraft/commands/CommandSourceStack;)V", shift = At.Shift.AFTER))
+    private void stopWatch(Collection<CommandFunction<CommandSourceStack>> functionObjects, ResourceLocation identifier, CallbackInfo ci, @Share("stopwatch") LocalRef<Stopwatch> watchRef) {
         var watch = watchRef.get();
         if (watch != null && watch.isRunning()) {
             watch.stop();
@@ -53,7 +53,7 @@ public class ServerFunctionManagerMixin implements IProfilingServerFunctionManag
     }
 
     @Inject(method = "executeTagFunctions", at = @At("RETURN"))
-    private void pruneUnusedWatches(Collection<CommandFunction> functionObjects, ResourceLocation identifier, CallbackInfo ci) {
+    private void pruneUnusedWatches(Collection<CommandFunction<CommandSourceStack>> functionObjects, ResourceLocation identifier, CallbackInfo ci) {
         mfix$functionWatches.values().removeIf(watch -> watch.elapsed().isZero());
     }
 
@@ -71,4 +71,3 @@ public class ServerFunctionManagerMixin implements IProfilingServerFunctionManag
         return sb.toString();
     }
 }
-*/
