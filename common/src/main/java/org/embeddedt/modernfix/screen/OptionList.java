@@ -11,7 +11,6 @@ import net.minecraft.client.gui.components.ContainerObjectSelectionList;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.narration.NarratableEntry;
-import net.minecraft.client.gui.render.state.GuiTextRenderState;
 import net.minecraft.client.resources.language.I18n;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.HoverEvent;
@@ -22,7 +21,6 @@ import org.embeddedt.modernfix.core.ModernFixMixinPlugin;
 import org.embeddedt.modernfix.core.config.Option;
 import org.embeddedt.modernfix.core.config.OptionCategories;
 import org.embeddedt.modernfix.platform.ModernFixPlatformHooks;
-import org.joml.Matrix3x2f;
 
 import java.io.IOException;
 import java.util.*;
