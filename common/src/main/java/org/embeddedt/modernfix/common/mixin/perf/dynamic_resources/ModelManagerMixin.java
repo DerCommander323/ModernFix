@@ -1,6 +1,5 @@
 package org.embeddedt.modernfix.common.mixin.perf.dynamic_resources;
 
-import com.google.common.collect.ForwardingMap;
 import com.google.common.collect.Maps;
 import com.llamalad7.mixinextras.sugar.Local;
 import net.minecraft.client.Minecraft;
@@ -65,30 +64,7 @@ public class ModelManagerMixin implements DynamicModelProvider.ModelManagerExten
     private static Map<BlockState, BlockStateModel> createBlockStateToModelDispatch(Map<BlockState, BlockStateModel> map, BlockStateModel missingModel) {
         var dynamicProvider = Objects.requireNonNull(DynamicModelProvider.currentReloadingModelProvider.get());
 
-        var dynamicRegistry = dynamicProvider.getTopLevelEmulatedRegistry();
-
-        return new ForwardingMap<>() {
-            @Override
-            protected Map<BlockState, BlockStateModel> delegate() {
-                return dynamicRegistry;
-            }
-
-            @Override
-            public BlockStateModel get(Object key) {
-                BlockStateModel result;
-                if (key instanceof IModelHoldingBlockState state) {
-                    result = state.mfix$getModel();
-                    if (result != null) {
-                        return result;
-                    }
-                }
-                result = dynamicRegistry.getOrDefault(key, dynamicProvider.getMissingBakedModel());
-                if (key instanceof IModelHoldingBlockState state) {
-                    state.mfix$setModel(result);
-                }
-                return result;
-            }
-        };
+        return dynamicProvider.getFastTopLevelEmulatedRegistry();
     }
 
     @Redirect(method = "reload", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/resources/model/ClientItemInfoLoader;scheduleLoad(Lnet/minecraft/server/packs/resources/ResourceManager;Ljava/util/concurrent/Executor;)Ljava/util/concurrent/CompletableFuture;"))
