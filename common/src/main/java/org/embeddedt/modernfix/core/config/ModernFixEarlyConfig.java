@@ -62,7 +62,7 @@ public class ModernFixEarlyConfig {
     private static final String MIXIN_REQUIRES_MOD_DESC = Type.getDescriptor(RequiresMod.class);
     private static final String MIXIN_DEV_ONLY_DESC = Type.getDescriptor(IgnoreOutsideDev.class);
 
-    private static final Pattern PLATFORM_PREFIX = Pattern.compile("(neoforge|fabric|common)\\.");
+    private static final Pattern PLATFORM_PREFIX = Pattern.compile("(forge|fabric|common)\\.");
 
     public static String sanitize(String mixinClassName) {
         return PLATFORM_PREFIX.matcher(mixinClassName).replaceFirst("");
@@ -78,7 +78,7 @@ public class ModernFixEarlyConfig {
     }
 
     private void scanForAndBuildMixinOptions() {
-        List<String> configFiles = ImmutableList.of("modernfix-common.mixins.json", "modernfix-fabric.mixins.json", "modernfix-neoforge.mixins.json");
+        List<String> configFiles = ImmutableList.of("modernfix-common.mixins.json", "modernfix-fabric.mixins.json", "modernfix-forge.mixins.json");
         List<String> mixinPaths = new ArrayList<>();
         for(String configFile : configFiles) {
             InputStream stream = ModernFixEarlyConfig.class.getClassLoader().getResourceAsStream(configFile);
@@ -163,6 +163,7 @@ public class ModernFixEarlyConfig {
             .put("mixin.perf.dynamic_resources", false)
             .put("mixin.feature.direct_stack_trace", false)
             .put("mixin.feature.stalled_chunk_load_detection", false)
+            .put("mixin.perf.blast_search_trees.force", false)
             .put("mixin.bugfix.restore_old_dragon_movement", false)
             .put("mixin.perf.worldgen_allocation", false) // experimental
             .put("mixin.feature.cause_lag_by_disabling_threads", false)
@@ -175,7 +176,6 @@ public class ModernFixEarlyConfig {
             .put("mixin.perf.dynamic_entity_renderers", false)
             .put("mixin.feature.integrated_server_watchdog", true)
             .put("mixin.perf.faster_item_rendering", false)
-            .put("mixin.perf.ingredient_item_deduplication", false)
             .put("mixin.feature.spam_thread_dump", false)
             .put("mixin.feature.disable_unihex_font", false)
             .put("mixin.feature.remove_chat_signing", false)
@@ -185,8 +185,11 @@ public class ModernFixEarlyConfig {
             .put("mixin.feature.spark_profile_world_join", false)
             .put("mixin.feature.log_stdout_in_log_files", true)
             .put("mixin.devenv", isDevEnv)
+            .put("mixin.perf.remove_spawn_chunks", isDevEnv)
+            .put("mixin.feature.suppress_narrator_stacktrace", !isDevEnv) // Not compatible with mixin.devenv
             .putConditionally(() -> !isFabric, "mixin.bugfix.fix_config_crashes", true)
-            .putConditionally(() -> !isFabric, "mixin.feature.registry_event_progress", true)
+            .putConditionally(() -> !isFabric, "mixin.bugfix.forge_at_inject_error", true)
+            .putConditionally(() -> !isFabric, "mixin.feature.registry_event_progress", false)
             .putConditionally(() -> isFabric, "mixin.perf.clear_fabric_mapping_tables", false)
             .build();
 
