@@ -175,6 +175,7 @@ public class ModernFixEarlyConfig {
             .put("mixin.perf.dynamic_entity_renderers", false)
             .put("mixin.feature.integrated_server_watchdog", true)
             .put("mixin.perf.faster_item_rendering", false)
+            .put("mixin.perf.ingredient_item_deduplication", false)
             .put("mixin.feature.spam_thread_dump", false)
             .put("mixin.feature.disable_unihex_font", false)
             .put("mixin.feature.remove_chat_signing", false)
@@ -239,6 +240,7 @@ public class ModernFixEarlyConfig {
         disableIfModPresent("mixin.feature.remove_chat_signing", "nochatreports");
         disableIfModPresent("mixin.perf.faster_texture_loading", "stitch", "optifine", "changed");
         disableIfModPresent("mixin.perf.faster_ingredients", "vmp");
+        disableIfModPresent("mixin.perf.smart_ingredient_sync", "crafttweaker");
         if(isFabric) {
             disableIfModPresent("mixin.bugfix.packet_leak", "memoryleakfix");
         }
