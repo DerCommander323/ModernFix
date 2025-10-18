@@ -17,7 +17,8 @@ import net.minecraft.client.renderer.item.MissingItemModel;
 import net.minecraft.client.renderer.item.ModelRenderProperties;
 import net.minecraft.client.renderer.texture.TextureAtlas;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
-import net.minecraft.client.resources.model.AtlasSet;
+import net.minecraft.client.renderer.texture.MissingTextureAtlasSprite;
+import net.minecraft.client.renderer.texture.TextureAtlas;
 import net.minecraft.client.resources.model.BlockModelRotation;
 import net.minecraft.client.resources.model.BlockStateDefinitions;
 import net.minecraft.client.resources.model.BlockStateModelLoader;
@@ -111,10 +112,11 @@ public class DynamicModelProvider {
     private static final boolean DEBUG_DYNAMIC_MODEL_LOADING = Boolean.getBoolean("modernfix.debugDynamicModelLoading");
 
     public DynamicModelProvider(ResourceManager resourceManager, EntityModelSet entityModelSet,
-                                Map<ResourceLocation, AtlasSet.StitchResult> atlasMap) {
+                                Map<ResourceLocation, TextureAtlas> atlasMap) {
         this.unbakedMissingModel = MissingBlockModel.missingModel();
         this.entityModelSet = entityModelSet;
-        var missing = atlasMap.get(TextureAtlas.LOCATION_BLOCKS).missing();
+        var blocksAtlas = atlasMap.get(TextureAtlas.LOCATION_BLOCKS);
+        var missing = blocksAtlas.getSprite(MissingTextureAtlasSprite.getLocation());
         this.textureGetter = new SpriteGetter() {
             @Override
             public TextureAtlasSprite get(Material material, ModelDebugName modelDebugName) {
@@ -567,7 +569,7 @@ public class DynamicModelProvider {
             return Optional.of(override);
         }
         return this.loadedClientItemProperties.getUnchecked(location).map(clientItem -> {
-            var bakingContext = new ItemModel.BakingContext(new DynamicBaker(location::toString), this.entityModelSet, this.missingItemModel, clientItem.registrySwapper());
+            var bakingContext = new ItemModel.BakingContext(new DynamicBaker(location::toString), this.entityModelSet, null, null, this.missingItemModel, clientItem.registrySwapper());
             return clientItem.model().bake(bakingContext);
         });
     }

@@ -8,7 +8,7 @@ import net.minecraft.client.renderer.block.model.BlockModel;
 import net.minecraft.client.renderer.block.model.BlockStateModel;
 import net.minecraft.client.renderer.item.ClientItem;
 import net.minecraft.client.renderer.item.ItemModel;
-import net.minecraft.client.resources.model.AtlasSet;
+import net.minecraft.client.renderer.texture.TextureAtlas;
 import net.minecraft.client.resources.model.BlockStateModelLoader;
 import net.minecraft.client.resources.model.ClientItemInfoLoader;
 import net.minecraft.client.resources.model.ModelManager;
@@ -73,7 +73,7 @@ public class ModelManagerMixin implements DynamicModelProvider.ModelManagerExten
     }
 
     @ModifyArg(method = "reload", at = @At(value = "INVOKE", target = "Ljava/util/concurrent/CompletableFuture;allOf([Ljava/util/concurrent/CompletableFuture;)Ljava/util/concurrent/CompletableFuture;", ordinal = 1))
-    private CompletableFuture<?>[] createModelProvider(CompletableFuture<?>[] cfs, @Local(ordinal = 0) CompletableFuture<EntityModelSet> entityModelFuture, @Local(ordinal = 0, argsOnly = true) Executor executor, @Local(ordinal = 0) Map<ResourceLocation, CompletableFuture<AtlasSet.StitchResult>> atlasPreparations) {
+    private CompletableFuture<?>[] createModelProvider(CompletableFuture<?>[] cfs, @Local(ordinal = 0) CompletableFuture<EntityModelSet> entityModelFuture, @Local(ordinal = 0, argsOnly = true) Executor executor, @Local(ordinal = 0) Map<ResourceLocation, CompletableFuture<TextureAtlas>> atlasPreparations) {
         CompletableFuture<Void> makeModelProviderFuture = CompletableFuture.supplyAsync(() -> {
             return Map.copyOf(Maps.transformValues(atlasPreparations, CompletableFuture::join));
         }, executor).thenAcceptBoth(entityModelFuture, (stitchResults, entityModelSet) -> {

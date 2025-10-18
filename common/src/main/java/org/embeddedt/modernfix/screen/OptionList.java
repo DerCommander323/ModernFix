@@ -133,6 +133,11 @@ public class OptionList extends ContainerObjectSelectionList<OptionList.Entry> {
         public List<? extends NarratableEntry> narratables() {
             return Collections.emptyList();
         }
+
+        @Override
+        public void renderContent(GuiGraphics guiGraphics, int index, int top, boolean isMouseOver, float partialTicks) {
+            render(guiGraphics, index, top, 0, 0, 0, 0, 0, isMouseOver, partialTicks);
+        }
     }
 
     class OptionEntry extends Entry {
@@ -181,7 +186,6 @@ public class OptionList extends ContainerObjectSelectionList<OptionList.Entry> {
             this.toggleButton.active = !(this.option.isModDefined() || this.option.isEffectivelyDisabledByParent());
         }
 
-        @Override
         public void render(GuiGraphics guiGraphics, int index, int top, int left, int width, int height, int mouseX, int mouseY, boolean isMouseOver, float partialTicks) {
             MutableComponent nameComponent = getOptionComponent(option);
             if(this.option.isUserDefined())
@@ -210,20 +214,9 @@ public class OptionList extends ContainerObjectSelectionList<OptionList.Entry> {
             return ImmutableList.of(this.toggleButton, this.helpButton);
         }
 
-        public boolean mouseClicked(double mouseX, double mouseY, int button) {
-            for(GuiEventListener listener : children()) {
-                if(listener.mouseClicked(mouseX, mouseY, button))
-                    return true;
-            }
-            return false;
-        }
-
-        public boolean mouseReleased(double mouseX, double mouseY, int button) {
-            for(GuiEventListener listener : children()) {
-                if(listener.mouseReleased(mouseX, mouseY, button))
-                    return true;
-            }
-            return false;
+        @Override
+        public void renderContent(GuiGraphics guiGraphics, int index, int top, boolean isMouseOver, float partialTicks) {
+            render(guiGraphics, index, top, 0, 0, 0, 0, 0, isMouseOver, partialTicks);
         }
 
         @Override
