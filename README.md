@@ -1,5 +1,7 @@
 # ModernFix
 
+A fork of ModernFix that maintains and adds support for minor minecraft versions as the orignal mod author will focus on more stable LTS releases.
+
 A performance mod for modern Minecraft that significantly improves launch times, world load times, memory usage, etc.
 
 Some fixes are based on prior work in various Forge PRs (check commit history and/or code comments). The config system
