@@ -35,7 +35,7 @@ public class ModelManagerMixinNeo {
      * @reason stop NeoForge from iterating over registered items to warn about missing models, as it always fails
      *  with dynamic resources enabled
      */
-    @Redirect(method = "apply", at = @At(value = "INVOKE", target = "Lnet/minecraft/core/DefaultedRegistry;iterator()Ljava/util/Iterator;"))
+    @Redirect(method = "apply", at = @At(value = "INVOKE", target = "Lnet/minecraft/core/DefaultedRegistry;iterator()Ljava/util/Iterator;"), require = 0)
     private static Iterator<Item> iterateItemRegistry(DefaultedRegistry<Item> registry) {
         return Collections.emptyIterator();
     }

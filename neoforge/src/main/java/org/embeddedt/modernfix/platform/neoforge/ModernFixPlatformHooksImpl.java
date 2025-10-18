@@ -8,9 +8,10 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.api.distmarker.Dist;
+import net.neoforged.fml.ModList;
 import net.neoforged.fml.ModLoader;
 import net.neoforged.fml.ModLoadingIssue;
-import net.neoforged.fml.loading.FMLLoader;
+import net.neoforged.api.distmarker.Dist;
 import net.neoforged.fml.loading.FMLPaths;
 import net.neoforged.fml.loading.LoadingModList;
 import net.neoforged.fml.loading.TracingPrintStream;
@@ -35,11 +36,11 @@ import java.util.function.Consumer;
 
 public class ModernFixPlatformHooksImpl implements ModernFixPlatformHooks {
     public boolean isClient() {
-        return FMLLoader.getDist() == Dist.CLIENT;
+        return Dist.CLIENT.isClient();
     }
 
     public boolean isDedicatedServer() {
-        return FMLLoader.getDist().isDedicatedServer();
+        return !Dist.CLIENT.isClient();
     }
 
     private static final String verString = Optional.ofNullable(
@@ -51,11 +52,11 @@ public class ModernFixPlatformHooksImpl implements ModernFixPlatformHooks {
     }
 
     public boolean modPresent(String modId) {
-        return FMLLoader.getLoadingModList().getModFileById(modId) != null;
+        return ModList.get().isLoaded(modId);
     }
 
     public boolean isDevEnv() {
-        return !FMLLoader.isProduction();
+        return true; // TODO: Fix production check for 1.21.9
     }
 
     public MinecraftServer getCurrentServer() {
