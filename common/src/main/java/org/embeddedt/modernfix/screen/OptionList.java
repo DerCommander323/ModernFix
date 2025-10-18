@@ -99,6 +99,31 @@ public class OptionList extends ContainerObjectSelectionList<OptionList.Entry> {
     public int getRowWidth() {
         return super.getRowWidth() + 32;
     }
+    
+    // Override to render entries with proper positioning
+    @Override
+    protected void renderListItems(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTicks) {
+        int left = this.getRowLeft();
+        int width = this.getRowWidth();
+        
+        int itemCount = this.children().size();
+        
+        for (int index = 0; index < itemCount; index++) {
+            int top = this.getRowTop(index);
+            int bottom = this.getRowBottom(index);
+            
+            if (bottom >= this.getY() && top <= this.getBottom()) {
+                Entry entry = this.children().get(index);
+                int height = 20; // itemHeight constant
+                boolean isMouseOver = this.isMouseOver(mouseX, mouseY) && 
+                                    mouseX >= this.getX() && mouseX <= this.getX() + this.width &&
+                                    mouseY >= top && mouseY < bottom;
+                
+                // Call the old render method with proper parameters
+                entry.render(guiGraphics, index, top, left, width, height, mouseX, mouseY, isMouseOver, partialTicks);
+            }
+        }
+    }
 
     class CategoryEntry extends Entry {
         private final Component name;
@@ -134,10 +159,6 @@ public class OptionList extends ContainerObjectSelectionList<OptionList.Entry> {
             return Collections.emptyList();
         }
 
-        @Override
-        public void renderContent(GuiGraphics guiGraphics, int index, int top, boolean isMouseOver, float partialTicks) {
-            render(guiGraphics, index, top, 0, 0, 0, 0, 0, isMouseOver, partialTicks);
-        }
     }
 
     class OptionEntry extends Entry {
@@ -215,11 +236,6 @@ public class OptionList extends ContainerObjectSelectionList<OptionList.Entry> {
         }
 
         @Override
-        public void renderContent(GuiGraphics guiGraphics, int index, int top, boolean isMouseOver, float partialTicks) {
-            render(guiGraphics, index, top, 0, 0, 0, 0, 0, isMouseOver, partialTicks);
-        }
-
-        @Override
         public List<? extends NarratableEntry> narratables() {
             return Collections.emptyList();
         }
@@ -227,6 +243,15 @@ public class OptionList extends ContainerObjectSelectionList<OptionList.Entry> {
 
     public abstract static class Entry extends ContainerObjectSelectionList.Entry<Entry> {
         public Entry() {
+        }
+        
+        // Abstract method for the old rendering API that we'll call directly
+        public abstract void render(GuiGraphics guiGraphics, int index, int top, int left, int width, int height, int mouseX, int mouseY, boolean isMouseOver, float partialTicks);
+        
+        // Empty implementation of the new API since we're bypassing it
+        @Override
+        public void renderContent(GuiGraphics guiGraphics, int index, int top, boolean isMouseOver, float partialTicks) {
+            // Not used - we override renderListItems() to call render() directly
         }
     }
 }
