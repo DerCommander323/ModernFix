@@ -52,7 +52,8 @@ public class ModernFixPlatformHooksImpl implements ModernFixPlatformHooks {
     }
 
     public boolean modPresent(String modId) {
-        return ModList.get().isLoaded(modId);
+        var modList = ModList.get();
+        return modList != null && modList.isLoaded(modId);
     }
 
     public boolean isDevEnv() {
