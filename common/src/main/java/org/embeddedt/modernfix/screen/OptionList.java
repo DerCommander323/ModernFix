@@ -204,13 +204,22 @@ public class OptionList extends ContainerObjectSelectionList<OptionList.Entry> {
         }
 
         void updateStatus() {
-            this.toggleButton.active = !(this.option.isModDefined() || this.option.isEffectivelyDisabledByParent());
+            // Disable dynamic_resources as it's broken
+            boolean isDynamicResources = this.name.equals("mixin.perf.dynamic_resources") || this.name.startsWith("mixin.perf.dynamic_resources.");
+            this.toggleButton.active = !(this.option.isModDefined() || this.option.isEffectivelyDisabledByParent() || isDynamicResources);
         }
 
         public void render(GuiGraphics guiGraphics, int index, int top, int left, int width, int height, int mouseX, int mouseY, boolean isMouseOver, float partialTicks) {
             MutableComponent nameComponent = getOptionComponent(option);
             if(this.option.isUserDefined())
                 nameComponent = nameComponent.withStyle(style -> style.withItalic(true)).append(Component.translatable("modernfix.config.not_default"));
+            
+            // Add red BROKEN text for dynamic_resources
+            boolean isDynamicResources = this.name.equals("mixin.perf.dynamic_resources") || this.name.startsWith("mixin.perf.dynamic_resources.");
+            if(isDynamicResources) {
+                nameComponent = nameComponent.append(Component.literal(" [BROKEN]").withStyle(ChatFormatting.RED));
+            }
+            
             float textX = (float)(left + DEPTH_OFFSET * option.getDepth() + 160 - OptionList.this.maxNameWidth);
             float textY = (float)(top + height / 2 - 4);
             guiGraphics.drawString(OptionList.this.minecraft.font, nameComponent, (int)textX, (int)textY, 0xFFFFFFFF);
