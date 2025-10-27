@@ -7,6 +7,7 @@ import org.spongepowered.asm.logging.ILogger;
 import org.spongepowered.asm.logging.LoggerAdapterDefault;
 import org.spongepowered.asm.mixin.MixinEnvironment;
 import org.spongepowered.asm.mixin.extensibility.IMixinInfo;
+import org.spongepowered.asm.mixin.throwables.ClassAlreadyLoadedException;
 import org.spongepowered.asm.mixin.transformer.ClassInfo;
 import org.spongepowered.asm.service.MixinServiceAbstract;
 
@@ -67,7 +68,12 @@ public class ClassInfoManager {
             e.printStackTrace();
             return;
         }
-        MixinEnvironment.getDefaultEnvironment().audit();
+        try {
+            MixinEnvironment.getDefaultEnvironment().audit();
+        } catch (ClassAlreadyLoadedException e) {
+            // Some classes may already be loaded during audit, which is expected and can be safely ignored
+            ModernFix.LOGGER.debug("Some classes were already loaded during mixin audit, continuing anyway");
+        }
         try {
             ClassNode emptyNode = new ClassNode();
             List<Map.Entry<String, ClassInfo>> entries = new ArrayList<>(classInfoCache.entrySet());
