@@ -60,6 +60,9 @@ public class ModernFixClientForge {
 
     private static final List<String> brandingList = new ArrayList<>();
 
+    // TODO: CustomizeGuiOverlayEvent.DebugText has been removed in NeoForge 21.10.x
+    // This needs to be reimplemented using the new overlay system
+    /*
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public void onRenderOverlay(CustomizeGuiOverlayEvent.DebugText event) {
         if(commonMod.brandingString != null && Minecraft.getInstance().getDebugOverlay().showDebugScreen()) {
@@ -81,6 +84,7 @@ public class ModernFixClientForge {
             right.addAll(targetIdx, brandingList);
         }
     }
+    */
 
     @SubscribeEvent
     public void onDisconnect(LevelEvent.Unload event) {
