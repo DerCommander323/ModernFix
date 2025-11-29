@@ -1,14 +1,17 @@
 package org.embeddedt.modernfix.common.mixin.perf.dynamic_resources;
 
-import com.google.common.collect.Maps;
+import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.sugar.Local;
+import com.llamalad7.mixinextras.sugar.Share;
+import com.llamalad7.mixinextras.sugar.ref.LocalRef;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.geom.EntityModelSet;
 import net.minecraft.client.renderer.block.model.BlockModel;
 import net.minecraft.client.renderer.block.model.BlockStateModel;
 import net.minecraft.client.renderer.item.ClientItem;
 import net.minecraft.client.renderer.item.ItemModel;
-import net.minecraft.client.resources.model.AtlasSet;
+import net.minecraft.client.renderer.texture.SpriteLoader;
+import net.minecraft.client.resources.model.AtlasManager;
 import net.minecraft.client.resources.model.BlockStateModelLoader;
 import net.minecraft.client.resources.model.ClientItemInfoLoader;
 import net.minecraft.client.resources.model.ModelManager;
@@ -21,10 +24,7 @@ import org.apache.commons.lang3.ArrayUtils;
 import org.embeddedt.modernfix.annotation.ClientOnlyMixin;
 import org.embeddedt.modernfix.duck.IModelHoldingBlockState;
 import org.embeddedt.modernfix.dynamicresources.DynamicModelProvider;
-import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Overwrite;
-import org.spongepowered.asm.mixin.Shadow;
-import org.spongepowered.asm.mixin.Unique;
+import org.spongepowered.asm.mixin.*;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyArg;
@@ -43,6 +43,9 @@ public class ModelManagerMixin implements DynamicModelProvider.ModelManagerExten
     @Shadow private Map<ResourceLocation, ItemModel> bakedItemStackModels;
     @Shadow private Map<ResourceLocation, ClientItem.Properties> itemProperties;
 
+    @Shadow
+    @Final
+    private AtlasManager atlasManager;
     @Unique
     private DynamicModelProvider mfix$modelProvider;
 
@@ -72,18 +75,32 @@ public class ModelManagerMixin implements DynamicModelProvider.ModelManagerExten
         return CompletableFuture.completedFuture(new ClientItemInfoLoader.LoadedClientInfos(Map.of()));
     }
 
+    @ModifyExpressionValue(method = "reload", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/resources/model/AtlasManager$PendingStitchResults;get(Lnet/minecraft/resources/ResourceLocation;)Ljava/util/concurrent/CompletableFuture;"))
+    private CompletableFuture<SpriteLoader.Preparations> storePreparationsFuture(
+            CompletableFuture<SpriteLoader.Preparations> original,
+            @Share("preparationsFuture") LocalRef<CompletableFuture<SpriteLoader.Preparations>> sharedPreparationsFuture
+    ) {
+        sharedPreparationsFuture.set(original);
+        return original;
+    }
+
     @ModifyArg(method = "reload", at = @At(value = "INVOKE", target = "Ljava/util/concurrent/CompletableFuture;allOf([Ljava/util/concurrent/CompletableFuture;)Ljava/util/concurrent/CompletableFuture;", ordinal = 1))
-    private CompletableFuture<?>[] createModelProvider(CompletableFuture<?>[] cfs, @Local(ordinal = 0) CompletableFuture<EntityModelSet> entityModelFuture, @Local(ordinal = 0, argsOnly = true) Executor executor, @Local(ordinal = 0) Map<ResourceLocation, CompletableFuture<AtlasSet.StitchResult>> atlasPreparations) {
-        CompletableFuture<Void> makeModelProviderFuture = CompletableFuture.supplyAsync(() -> {
-            return Map.copyOf(Maps.transformValues(atlasPreparations, CompletableFuture::join));
-        }, executor).thenAcceptBoth(entityModelFuture, (stitchResults, entityModelSet) -> {
-            this.mfix$modelProvider = new DynamicModelProvider(
-                    Minecraft.getInstance().getResourceManager(),
-                    entityModelSet,
-                    stitchResults
-            );
-            DynamicModelProvider.currentReloadingModelProvider = new WeakReference<>(this.mfix$modelProvider);
-        });
+    public CompletableFuture<?>[] createModelProviderCommon(
+            CompletableFuture<?>[] cfs,
+            @Local(ordinal = 0) CompletableFuture<EntityModelSet> entityModelFuture,
+            @Share("preparationsFuture") LocalRef<CompletableFuture<SpriteLoader.Preparations>> sharedPreparationsFuture
+    ) {
+        CompletableFuture<Void> makeModelProviderFuture = entityModelFuture
+                .thenAcceptBoth(sharedPreparationsFuture.get(), (entityModelSet, preparations) -> {
+                    this.mfix$modelProvider = new DynamicModelProvider(
+                            Minecraft.getInstance().getResourceManager(),
+                            entityModelSet,
+                            preparations,
+                            ((ModelManagerAccessor) this).mfix$getPlayerSkinRenderCache(),
+                            this.atlasManager
+                    );
+                    DynamicModelProvider.currentReloadingModelProvider = new WeakReference<>(this.mfix$modelProvider);
+                });
         return ArrayUtils.add(cfs, makeModelProviderFuture);
     }
 

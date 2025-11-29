@@ -10,26 +10,15 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mojang.serialization.JsonOps;
 import net.minecraft.client.model.geom.EntityModelSet;
+import net.minecraft.client.renderer.PlayerSkinRenderCache;
 import net.minecraft.client.renderer.block.model.*;
 import net.minecraft.client.renderer.item.ClientItem;
 import net.minecraft.client.renderer.item.ItemModel;
 import net.minecraft.client.renderer.item.MissingItemModel;
 import net.minecraft.client.renderer.item.ModelRenderProperties;
-import net.minecraft.client.renderer.texture.TextureAtlas;
+import net.minecraft.client.renderer.texture.SpriteLoader;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
-import net.minecraft.client.resources.model.AtlasSet;
-import net.minecraft.client.resources.model.BlockModelRotation;
-import net.minecraft.client.resources.model.BlockStateDefinitions;
-import net.minecraft.client.resources.model.BlockStateModelLoader;
-import net.minecraft.client.resources.model.Material;
-import net.minecraft.client.resources.model.MissingBlockModel;
-import net.minecraft.client.resources.model.ModelBaker;
-import net.minecraft.client.resources.model.ModelDebugName;
-import net.minecraft.client.resources.model.ModelDiscovery;
-import net.minecraft.client.resources.model.ModelState;
-import net.minecraft.client.resources.model.ResolvedModel;
-import net.minecraft.client.resources.model.SpriteGetter;
-import net.minecraft.client.resources.model.UnbakedModel;
+import net.minecraft.client.resources.model.*;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
@@ -100,6 +89,8 @@ public class DynamicModelProvider {
     private final SpriteGetter textureGetter;
     private final EntityModelSet entityModelSet;
     private final ItemModelGenerator itemModelGenerator;
+    private final PlayerSkinRenderCache skinRenderCache;
+    private final MaterialSet materialSet;
 
     private final Map<BlockState, BlockStateModel> mrlModelOverrides = new ConcurrentHashMap<>();
     private final Map<ResourceLocation, ItemModel> itemStackModelOverrides = new ConcurrentHashMap<>();
@@ -111,15 +102,17 @@ public class DynamicModelProvider {
     private static final boolean DEBUG_DYNAMIC_MODEL_LOADING = Boolean.getBoolean("modernfix.debugDynamicModelLoading");
 
     public DynamicModelProvider(ResourceManager resourceManager, EntityModelSet entityModelSet,
-                                Map<ResourceLocation, AtlasSet.StitchResult> atlasMap) {
+                                SpriteLoader.Preparations preparations, PlayerSkinRenderCache skinRenderCache, MaterialSet materialSet) {
         this.unbakedMissingModel = MissingBlockModel.missingModel();
         this.entityModelSet = entityModelSet;
-        var missing = atlasMap.get(TextureAtlas.LOCATION_BLOCKS).missing();
+        this.skinRenderCache = skinRenderCache;
+        this.materialSet = materialSet;
+        var missing = preparations.missing();
+
         this.textureGetter = new SpriteGetter() {
             @Override
-            public TextureAtlasSprite get(Material material, ModelDebugName modelDebugName) {
-                var atlas = atlasMap.get(material.atlasLocation());
-                var sprite = atlas.getSprite(material.texture());
+            public @NotNull TextureAtlasSprite get(Material material, ModelDebugName modelDebugName) {
+                var sprite = preparations.getSprite(material.texture());
                 if (sprite != null) {
                     return sprite;
                 } else {
@@ -129,7 +122,7 @@ public class DynamicModelProvider {
             }
 
             @Override
-            public TextureAtlasSprite reportMissingReference(String string, ModelDebugName modelDebugName) {
+            public @NotNull TextureAtlasSprite reportMissingReference(String string, ModelDebugName modelDebugName) {
                 return missing;
             }
         };
@@ -567,11 +560,12 @@ public class DynamicModelProvider {
             return Optional.of(override);
         }
         return this.loadedClientItemProperties.getUnchecked(location).map(clientItem -> {
-            var bakingContext = new ItemModel.BakingContext(new DynamicBaker(location::toString), this.entityModelSet, this.missingItemModel, clientItem.registrySwapper());
+            var bakingContext = new ItemModel.BakingContext(new DynamicBaker(location::toString), this.entityModelSet, this.materialSet, this.skinRenderCache, this.missingItemModel, clientItem.registrySwapper());
             return clientItem.model().bake(bakingContext);
         });
     }
 
+    /* IntelliJ says these are unused, commenting them for now
     public BlockStateModel getModel(BlockState location) {
         return this.loadedBakedModels.getUnchecked(location).orElse(this.missingModel);
     }
@@ -584,16 +578,14 @@ public class DynamicModelProvider {
         return this.loadedItemModels.getUnchecked(location).orElse(this.missingItemModel);
     }
 
-    /*
     public BakedModel getStandaloneModel(ResourceLocation location) {
         return this.loadedStandaloneModels.getUnchecked(location).orElse(this.missingModel);
     }
 
-     */
-
     public void addUnbakedBlockStateOverride(BlockState location, BlockStateModel.Unbaked model) {
         this.unbakedBlockStateModelOverrides.put(location, model);
     }
+     */
 
     private class DynamicBaker implements ModelBaker {
         private final ModelDebugName modelDebugName;

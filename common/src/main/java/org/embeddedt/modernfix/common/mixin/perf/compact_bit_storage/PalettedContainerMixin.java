@@ -40,7 +40,7 @@ public abstract class PalettedContainerMixin<T> {
                 return;
             }
             this.data = this.createOrReuseData(null, 0);
-            this.data.palette().idFor(value);
+            this.data.palette().idFor(value, null);
         }
     }
 }

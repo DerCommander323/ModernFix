@@ -40,7 +40,7 @@ public class ModernFixForge {
         modBus.addListener(this::commonSetup);
         modBus.addListener(this::registerItems);
         modBus.addListener(this::registerNetworkChannel);
-        if(FMLEnvironment.dist == Dist.CLIENT) {
+        if(FMLEnvironment.getDist() == Dist.CLIENT) {
             NeoForge.EVENT_BUS.register(new ModernFixClientForge(modContainer, modBus));
         }
         modContainer.registerConfig(ModConfig.Type.COMMON, ModernFixConfig.COMMON_CONFIG);
@@ -66,7 +66,7 @@ public class ModernFixForge {
             event.enqueueWork(() -> {
                 boolean atLeastOneWarning = false;
                 for(Pair<List<String>, String> warning : MOD_WARNINGS) {
-                    boolean isPresent = !FMLLoader.isProduction() || warning.getLeft().stream().anyMatch(name -> ModList.get().isLoaded(name));
+                    boolean isPresent = !FMLLoader.getCurrent().isProduction() || warning.getLeft().stream().anyMatch(name -> ModList.get().isLoaded(name));
                     if(!isPresent) {
                         atLeastOneWarning = true;
                         ModLoader.addLoadingIssue(ModLoadingIssue.warning(warning.getRight()));

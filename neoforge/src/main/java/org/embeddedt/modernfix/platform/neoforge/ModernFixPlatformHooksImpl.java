@@ -35,11 +35,11 @@ import java.util.function.Consumer;
 
 public class ModernFixPlatformHooksImpl implements ModernFixPlatformHooks {
     public boolean isClient() {
-        return FMLLoader.getDist() == Dist.CLIENT;
+        return FMLLoader.getCurrent().getDist() == Dist.CLIENT;
     }
 
     public boolean isDedicatedServer() {
-        return FMLLoader.getDist().isDedicatedServer();
+        return FMLLoader.getCurrent().getDist().isDedicatedServer();
     }
 
     private static final String verString = Optional.ofNullable(
@@ -51,11 +51,11 @@ public class ModernFixPlatformHooksImpl implements ModernFixPlatformHooks {
     }
 
     public boolean modPresent(String modId) {
-        return FMLLoader.getLoadingModList().getModFileById(modId) != null;
+        return FMLLoader.getCurrent().getLoadingModList().getModFileById(modId) != null;
     }
 
     public boolean isDevEnv() {
-        return !FMLLoader.isProduction();
+        return !FMLLoader.getCurrent().isProduction();
     }
 
     public MinecraftServer getCurrentServer() {
@@ -63,7 +63,7 @@ public class ModernFixPlatformHooksImpl implements ModernFixPlatformHooks {
     }
 
     public boolean isEarlyLoadingNormally() {
-        var issues = LoadingModList.get().getModLoadingIssues();
+        var issues = FMLLoader.getCurrent().getLoadingModList().getModLoadingIssues();
         if (issues.isEmpty()) {
             return true;
         }
@@ -108,7 +108,7 @@ public class ModernFixPlatformHooksImpl implements ModernFixPlatformHooks {
     public Multimap<String, String> getCustomModOptions() {
         if(modOptions == null) {
             modOptions = ArrayListMultimap.create();
-            for (ModInfo meta : LoadingModList.get().getMods()) {
+            for (ModInfo meta : FMLLoader.getCurrent().getLoadingModList().getMods()) {
                 meta.getConfigElement(IntegrationConstants.INTEGRATIONS_KEY).ifPresent(optionsObj -> {
                     if(optionsObj instanceof Map) {
                         Map<Object, Object> options = (Map<Object, Object>)optionsObj;
