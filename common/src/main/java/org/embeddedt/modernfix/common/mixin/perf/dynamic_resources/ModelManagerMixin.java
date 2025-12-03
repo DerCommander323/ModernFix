@@ -6,6 +6,7 @@ import com.llamalad7.mixinextras.sugar.Share;
 import com.llamalad7.mixinextras.sugar.ref.LocalRef;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.geom.EntityModelSet;
+import net.minecraft.client.renderer.PlayerSkinRenderCache;
 import net.minecraft.client.renderer.block.model.BlockModel;
 import net.minecraft.client.renderer.block.model.BlockStateModel;
 import net.minecraft.client.renderer.item.ClientItem;
@@ -46,6 +47,9 @@ public class ModelManagerMixin implements DynamicModelProvider.ModelManagerExten
     @Shadow
     @Final
     private AtlasManager atlasManager;
+    @Final
+    @Shadow
+    private PlayerSkinRenderCache playerSkinRenderCache;
     @Unique
     private DynamicModelProvider mfix$modelProvider;
 
@@ -92,7 +96,7 @@ public class ModelManagerMixin implements DynamicModelProvider.ModelManagerExten
                         entityModelSetFuture.join(),
                         blockPreparationsFuture.join(),
                         itemPreparationsFuture.join(),
-                        ((ModelManagerAccessor) this).mfix$getPlayerSkinRenderCache(),
+                        this.playerSkinRenderCache,
                         this.atlasManager
                 );
                 DynamicModelProvider.currentReloadingModelProvider = new WeakReference<>(this.mfix$modelProvider);
