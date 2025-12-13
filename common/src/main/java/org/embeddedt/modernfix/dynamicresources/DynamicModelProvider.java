@@ -31,6 +31,7 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import org.embeddedt.modernfix.ModernFix;
+import org.embeddedt.modernfix.common.mixin.perf.dynamic_resources.BlockStateDefinitionsAccessor;
 import org.embeddedt.modernfix.common.mixin.perf.dynamic_resources.BlockStateModelLoaderMixin;
 import org.embeddedt.modernfix.common.mixin.perf.dynamic_resources.ModelWrapperInvoker;
 import org.embeddedt.modernfix.duck.IModelHoldingBlockState;
@@ -173,7 +174,7 @@ public class DynamicModelProvider {
 
             @Override
             public PartCache parts() {
-                return partCache;
+                return DynamicModelProvider.this.partCache;
             }
 
             @Override
@@ -218,6 +219,36 @@ public class DynamicModelProvider {
         } catch(Exception ignored) {
             // Fabric API likely not present
         }
+
+        // Fix item frames because they use a fake air BlockState
+        Map<Identifier, StateDefinition<Block, BlockState>> static_definitions = BlockStateDefinitionsAccessor.getStaticDefinitions();
+
+        for (var definition : static_definitions.entrySet()) {
+            StateDefinition<Block, BlockState> fakeStateDefinitions = definition.getValue();
+            Identifier identifier = definition.getKey();
+            Identifier modelIdentifier = identifier.withPath("block/"+identifier.getPath());
+
+            Optional<UnbakedModel> unbakedModel = this.loadedBlockModels.getUnchecked(modelIdentifier);
+
+            for (var fakeState : fakeStateDefinitions.getPossibleStates()) {
+                Optional<BlockStateModel> bakedModel = unbakedModel.flatMap(model -> {
+                    var optLoadedModels = this.loadedStateDefinitions.getUnchecked(identifier);
+                    return optLoadedModels
+                            .map(loadedModels -> loadedModels.models().get(fakeState))
+                            .map(unbakedRoot -> this.bakeModel(unbakedRoot, fakeState));
+                });
+
+                if (bakedModel.isPresent()) {
+                    this.mrlModelOverrides.put(fakeState, bakedModel.get());
+                } else {
+                    ModernFix.LOGGER.error(
+                            "Failed to load BlockStateModel for static definition {}, state {}",
+                            identifier, fakeState
+                    );
+                }
+            }
+        }
+        ModernFix.LOGGER.info("Loaded {} BlockState -> BlockStateModel overrides", this.mrlModelOverrides.size());
     }
 
     public BlockStateModel getMissingBakedModel() {
@@ -598,6 +629,10 @@ public class DynamicModelProvider {
             var bakingContext = new ItemModel.BakingContext(new DynamicBaker(location::toString), this.entityModelSet, this.materialSet, this.skinRenderCache, this.missingItemModel, clientItem.registrySwapper());
             return clientItem.model().bake(bakingContext);
         });
+    }
+
+    LoadingCache<BlockState, Optional<BlockStateModel>> getBlockStateCache() {
+        return this.loadedBakedModels;
     }
 
     /* IntelliJ says these are unused, commenting them for now

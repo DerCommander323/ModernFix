@@ -1,9 +1,5 @@
 package org.embeddedt.modernfix.common.mixin.perf.dynamic_resources;
 
-import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
-import com.llamalad7.mixinextras.sugar.Local;
-import com.llamalad7.mixinextras.sugar.Share;
-import com.llamalad7.mixinextras.sugar.ref.LocalRef;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.geom.EntityModelSet;
 import net.minecraft.client.renderer.PlayerSkinRenderCache;
@@ -85,7 +81,7 @@ public class ModelManagerMixin implements DynamicModelProvider.ModelManagerExten
     public CompletableFuture<?>[] createModelProviderCommon(
             CompletableFuture<?>[] futures
     ) {
-        // Remember to change these when updating! Otherwise I doubt the order of the arguments will change
+        // Remember to change these when updating! Otherwise, I doubt the order of the arguments will change
         var itemPreparationsFuture = (CompletableFuture<SpriteLoader.Preparations>) futures[1];
         var blockPreparationsFuture = (CompletableFuture<SpriteLoader.Preparations>) futures[0];
         var entityModelSetFuture = (CompletableFuture<EntityModelSet>) futures[6];
