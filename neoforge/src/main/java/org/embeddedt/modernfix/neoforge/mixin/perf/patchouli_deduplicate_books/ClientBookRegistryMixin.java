@@ -10,7 +10,6 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import vazkii.patchouli.client.book.BookContents;
 import vazkii.patchouli.client.book.BookEntry;
 import vazkii.patchouli.client.book.BookPage;
 import vazkii.patchouli.client.book.ClientBookRegistry;
@@ -22,7 +21,9 @@ import vazkii.patchouli.common.book.Book;
 import vazkii.patchouli.common.book.BookRegistry;
 
 import java.lang.reflect.Field;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 
 @Mixin(ClientBookRegistry.class)
 @RequiresMod("patchouli")
@@ -34,13 +35,26 @@ public class ClientBookRegistryMixin {
         Field contentsField = ObfuscationReflectionHelper.findField(Book.class, "contents");
         Field componentsField = ObfuscationReflectionHelper.findField(BookTemplate.class, "components");
         Field itemsField = ObfuscationReflectionHelper.findField(ComponentItemStack.class, "items");
+        Field entriesField;
+        try {
+            entriesField = Class.forName("vazkii.patchouli.client.book.BookContents").getDeclaredField("entries");
+            entriesField.setAccessible(true);
+        } catch (Exception e) {
+            ModernFix.LOGGER.warn("Could not find BookContents.entries field for deduplication", e);
+            return;
+        }
         int numItemsCleared = 0;
         for(Book book : BookRegistry.INSTANCE.books.values()) {
             try {
-                BookContents contents = (BookContents)contentsField.get(book);
-                if(contents == null || contents.entries == null)
+                Object contents = contentsField.get(book);
+                if(contents == null)
                     continue;
-                for(BookEntry entry : contents.entries.values()) {
+                Object entriesObj = entriesField.get(contents);
+                if(entriesObj == null)
+                    continue;
+                @SuppressWarnings("unchecked")
+                Collection<BookEntry> entries = ((Map<?, BookEntry>)entriesObj).values();
+                for(BookEntry entry : entries) {
                     for(BookPage page : entry.getPages()) {
                         if(page instanceof PageTemplate) {
                             List<TemplateComponent> components;

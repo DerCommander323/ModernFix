@@ -41,6 +41,7 @@ public class ModelBakeEventHelper {
     public ModelBakery.BakingResult createDynamicResult() {
         return new ModelBakery.BakingResult(
                 new ModelBakery.MissingModels(
+                        this.modelRegistry.getMissingBlockModelPart(),
                         this.modelRegistry.getMissingBakedModel(),
                         this.modelRegistry.getMissingItemModel()
                 ),

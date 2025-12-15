@@ -1,6 +1,6 @@
 package org.embeddedt.modernfix.common.mixin.core;
 
-import net.minecraft.Util;
+import net.minecraft.util.Util;
 import net.minecraft.server.MinecraftServer;
 import org.embeddedt.modernfix.duck.ITimeTrackingServer;
 import org.spongepowered.asm.mixin.Mixin;

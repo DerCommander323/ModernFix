@@ -2,7 +2,7 @@ package org.embeddedt.modernfix.neoforge.init;
 
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.KeyMapping;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.DebugScreenOverlay;
 import net.neoforged.bus.api.EventPriority;
@@ -38,7 +38,7 @@ public class ModernFixClientForge {
     private KeyMapping configKey;
 
     private void keyBindRegister(RegisterKeyMappingsEvent event) {
-        configKey = new KeyMapping("key.modernfix.config", InputConstants.Type.KEYSYM, InputConstants.UNKNOWN.getValue(), new net.minecraft.client.KeyMapping.Category(ResourceLocation.fromNamespaceAndPath("minecraft", "misc")));
+        configKey = new KeyMapping("key.modernfix.config", InputConstants.Type.KEYSYM, InputConstants.UNKNOWN.getValue(), new net.minecraft.client.KeyMapping.Category(Identifier.fromNamespaceAndPath("minecraft", "misc")));
         event.register(configKey);
     }
 

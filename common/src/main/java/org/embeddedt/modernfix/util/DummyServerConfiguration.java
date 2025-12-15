@@ -4,6 +4,7 @@ import com.google.common.collect.ImmutableSet;
 import com.mojang.serialization.Lifecycle;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.level.*;
+import net.minecraft.world.level.gamerules.GameRules;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.world.Difficulty;
 import net.minecraft.world.level.dimension.end.EndDragonFight;

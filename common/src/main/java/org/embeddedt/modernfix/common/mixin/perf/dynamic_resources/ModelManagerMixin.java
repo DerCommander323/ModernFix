@@ -13,7 +13,7 @@ import net.minecraft.client.resources.model.BlockStateModelLoader;
 import net.minecraft.client.resources.model.ClientItemInfoLoader;
 import net.minecraft.client.resources.model.ModelManager;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
@@ -40,14 +40,14 @@ import java.util.concurrent.Executor;
 @Mixin(ModelManager.class)
 @ClientOnlyMixin
 public class ModelManagerMixin implements DynamicModelProvider.ModelManagerExtension {
-    @Shadow private Map<ResourceLocation, ItemModel> bakedItemStackModels;
-    @Shadow private Map<ResourceLocation, ClientItem.Properties> itemProperties;
+    @Shadow private Map<Identifier, ItemModel> bakedItemStackModels;
+    @Shadow private Map<Identifier, ClientItem.Properties> itemProperties;
 
     @Unique
     private DynamicModelProvider mfix$modelProvider;
 
     @Redirect(method = "reload", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/resources/model/ModelManager;loadBlockModels(Lnet/minecraft/server/packs/resources/ResourceManager;Ljava/util/concurrent/Executor;)Ljava/util/concurrent/CompletableFuture;"))
-    private CompletableFuture<Map<ResourceLocation, BlockModel>> deferBlockModelLoad(ResourceManager manager, Executor executor) {
+    private CompletableFuture<Map<Identifier, BlockModel>> deferBlockModelLoad(ResourceManager manager, Executor executor) {
         return CompletableFuture.completedFuture(Map.of());
     }
 
@@ -73,7 +73,7 @@ public class ModelManagerMixin implements DynamicModelProvider.ModelManagerExten
     }
 
     @ModifyArg(method = "reload", at = @At(value = "INVOKE", target = "Ljava/util/concurrent/CompletableFuture;allOf([Ljava/util/concurrent/CompletableFuture;)Ljava/util/concurrent/CompletableFuture;", ordinal = 1))
-    private CompletableFuture<?>[] createModelProvider(CompletableFuture<?>[] cfs, @Local(ordinal = 0) CompletableFuture<EntityModelSet> entityModelFuture, @Local(ordinal = 0, argsOnly = true) Executor executor, @Local(ordinal = 0) Map<ResourceLocation, CompletableFuture<TextureAtlas>> atlasPreparations) {
+    private CompletableFuture<?>[] createModelProvider(CompletableFuture<?>[] cfs, @Local(ordinal = 0) CompletableFuture<EntityModelSet> entityModelFuture, @Local(ordinal = 0, argsOnly = true) Executor executor, @Local(ordinal = 0) Map<Identifier, CompletableFuture<TextureAtlas>> atlasPreparations) {
         CompletableFuture<Void> makeModelProviderFuture = CompletableFuture.supplyAsync(() -> {
             return Map.copyOf(Maps.transformValues(atlasPreparations, CompletableFuture::join));
         }, executor).thenAcceptBoth(entityModelFuture, (stitchResults, entityModelSet) -> {
