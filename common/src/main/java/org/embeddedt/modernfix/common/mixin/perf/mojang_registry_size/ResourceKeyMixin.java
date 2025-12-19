@@ -14,15 +14,15 @@ import java.util.Map;
 public class ResourceKeyMixin<T> {
     private static final Map<Identifier, Map<Identifier, ResourceKey<?>>> INTERNING_MAP = new Object2ObjectOpenHashMap<>();
     @Inject(method = "create(Lnet/minecraft/resources/Identifier;Lnet/minecraft/resources/Identifier;)Lnet/minecraft/resources/ResourceKey;", at = @At("HEAD"), cancellable = true)
-    private static <T> void createEfficient(Identifier parent, Identifier location, CallbackInfoReturnable<ResourceKey<T>> cir) {
+    private static <T> void createEfficient(Identifier parent, Identifier identifier, CallbackInfoReturnable<ResourceKey<T>> cir) {
         synchronized (ResourceKey.class) {
             Map<Identifier, ResourceKey<?>> keys = INTERNING_MAP.computeIfAbsent(parent, k -> new Object2ObjectOpenHashMap<>());
-            ResourceKey<?> key = keys.get(location);
+            ResourceKey<?> key = keys.get(identifier);
             if(key == null) {
-                key = new ResourceKey<>(parent, location);
-                keys.put(location, key);
+                key = ResourceKeyInvoker.mfix$invokeCtor(parent, identifier);
+                keys.put(identifier, key);
             }
-            cir.setReturnValue((ResourceKey<T>)key);
+            cir.setReturnValue((ResourceKey<T>) key);
         }
     }
 }

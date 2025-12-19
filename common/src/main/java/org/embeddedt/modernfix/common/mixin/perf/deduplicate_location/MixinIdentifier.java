@@ -11,7 +11,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(Identifier.class)
-public class MixinResourceLocation {
+public class MixinIdentifier {
     @Mutable
     @Shadow
     @Final

@@ -11,6 +11,7 @@ import net.minecraft.client.gui.components.ContainerObjectSelectionList;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.narration.NarratableEntry;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.resources.language.I18n;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.HoverEvent;
@@ -99,31 +100,6 @@ public class OptionList extends ContainerObjectSelectionList<OptionList.Entry> {
     public int getRowWidth() {
         return super.getRowWidth() + 32;
     }
-    
-    // Override to render entries with proper positioning
-    @Override
-    protected void renderListItems(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTicks) {
-        int left = this.getRowLeft();
-        int width = this.getRowWidth();
-        
-        int itemCount = this.children().size();
-        
-        for (int index = 0; index < itemCount; index++) {
-            int top = this.getRowTop(index);
-            int bottom = this.getRowBottom(index);
-            
-            if (bottom >= this.getY() && top <= this.getBottom()) {
-                Entry entry = this.children().get(index);
-                int height = 20; // itemHeight constant
-                boolean isMouseOver = this.isMouseOver(mouseX, mouseY) && 
-                                    mouseX >= this.getX() && mouseX <= this.getX() + this.width &&
-                                    mouseY >= top && mouseY < bottom;
-                
-                // Call the old render method with proper parameters
-                entry.render(guiGraphics, index, top, left, width, height, mouseX, mouseY, isMouseOver, partialTicks);
-            }
-        }
-    }
 
     class CategoryEntry extends Entry {
         private final Component name;
@@ -134,10 +110,11 @@ public class OptionList extends ContainerObjectSelectionList<OptionList.Entry> {
             this.width = OptionList.this.minecraft.font.width(this.name);
         }
 
-        public void render(GuiGraphics guiGraphics, int index, int top, int left, int width, int height, int mouseX, int mouseY, boolean isMouseOver, float partialTicks) {
+        @Override
+        public void renderContent(GuiGraphics guiGraphics, int mouseX, int mouseY, boolean isHovering, float partialTick) {
             Font var10000 = OptionList.this.minecraft.font;
             float x = (float)(OptionList.this.minecraft.screen.width / 2 - this.width / 2);
-            int y = top + height - 10;
+            int y = this.getY();
             guiGraphics.drawString(var10000, this.name, (int)x, y, 0xFFFFFFFF);
             /*
             if(mouseX >= x && mouseY >= y && mouseX <= (x + this.width) && mouseY <= (y + OptionList.this.minecraft.font.lineHeight))
@@ -158,7 +135,6 @@ public class OptionList extends ContainerObjectSelectionList<OptionList.Entry> {
         public List<? extends NarratableEntry> narratables() {
             return Collections.emptyList();
         }
-
     }
 
     class OptionEntry extends Entry {
@@ -204,30 +180,22 @@ public class OptionList extends ContainerObjectSelectionList<OptionList.Entry> {
         }
 
         void updateStatus() {
-            // Disable dynamic_resources as it's broken
-            boolean isDynamicResources = this.name.equals("mixin.perf.dynamic_resources") || this.name.startsWith("mixin.perf.dynamic_resources.");
-            this.toggleButton.active = !(this.option.isModDefined() || this.option.isEffectivelyDisabledByParent() || isDynamicResources);
+            this.toggleButton.active = !(this.option.isModDefined() || this.option.isEffectivelyDisabledByParent());
         }
 
-        public void render(GuiGraphics guiGraphics, int index, int top, int left, int width, int height, int mouseX, int mouseY, boolean isMouseOver, float partialTicks) {
+        @Override
+        public void renderContent(GuiGraphics guiGraphics, int mouseX, int mouseY, boolean isHovering, float partialTick) {
             MutableComponent nameComponent = getOptionComponent(option);
             if(this.option.isUserDefined())
                 nameComponent = nameComponent.withStyle(style -> style.withItalic(true)).append(Component.translatable("modernfix.config.not_default"));
-            
-            // Add red BROKEN text for dynamic_resources
-            boolean isDynamicResources = this.name.equals("mixin.perf.dynamic_resources") || this.name.startsWith("mixin.perf.dynamic_resources.");
-            if(isDynamicResources) {
-                nameComponent = nameComponent.append(Component.literal(" [BROKEN]").withStyle(ChatFormatting.RED));
-            }
-            
-            float textX = (float)(left + DEPTH_OFFSET * option.getDepth() + 160 - OptionList.this.maxNameWidth);
-            float textY = (float)(top + height / 2 - 4);
+            float textX = (float)(this.getX() + DEPTH_OFFSET * option.getDepth() + 160 - OptionList.this.maxNameWidth);
+            float textY = (float) this.getY() + 6;
             guiGraphics.drawString(OptionList.this.minecraft.font, nameComponent, (int)textX, (int)textY, 0xFFFFFFFF);
-            this.toggleButton.setPosition(left + 175, top);
+            this.toggleButton.setPosition(this.getX() + 175, this.getY());
             this.toggleButton.setMessage(getOptionMessage(this.option));
-            this.toggleButton.render(guiGraphics, mouseX, mouseY, partialTicks);
-            this.helpButton.setPosition(left + 175 + 55, top);
-            this.helpButton.render(guiGraphics, mouseX, mouseY, partialTicks);
+            this.toggleButton.render(guiGraphics, mouseX, mouseY, partialTick);
+            this.helpButton.setPosition(this.getX() + 175 + 55, this.getY());
+            this.helpButton.render(guiGraphics, mouseX, mouseY, partialTick);
             /*
             if(mouseX >= textX && mouseY >= textY && mouseX <= (textX + OptionList.this.maxNameWidth) && mouseY <= (textY + OptionList.this.minecraft.font.lineHeight))
                 OptionList.this.mainScreen.renderComponentHoverEffect(matrixStack, nameComponent.getStyle(), mouseX, mouseY);
@@ -245,6 +213,24 @@ public class OptionList extends ContainerObjectSelectionList<OptionList.Entry> {
         }
 
         @Override
+        public boolean mouseClicked(MouseButtonEvent event, boolean isDoubleClick) {
+            for(GuiEventListener listener : children()) {
+                if(listener.mouseClicked(event, isDoubleClick))
+                    return true;
+            }
+            return false;
+        }
+
+        @Override
+        public boolean mouseReleased(MouseButtonEvent event) {
+            for(GuiEventListener listener : children()) {
+                if(listener.mouseReleased(event))
+                    return true;
+            }
+            return false;
+        }
+
+        @Override
         public List<? extends NarratableEntry> narratables() {
             return Collections.emptyList();
         }
@@ -252,15 +238,6 @@ public class OptionList extends ContainerObjectSelectionList<OptionList.Entry> {
 
     public abstract static class Entry extends ContainerObjectSelectionList.Entry<Entry> {
         public Entry() {
-        }
-        
-        // Abstract method for the old rendering API that we'll call directly
-        public abstract void render(GuiGraphics guiGraphics, int index, int top, int left, int width, int height, int mouseX, int mouseY, boolean isMouseOver, float partialTicks);
-        
-        // Empty implementation of the new API since we're bypassing it
-        @Override
-        public void renderContent(GuiGraphics guiGraphics, int index, int top, boolean isMouseOver, float partialTicks) {
-            // Not used - we override renderListItems() to call render() directly
         }
     }
 }

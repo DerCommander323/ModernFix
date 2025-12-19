@@ -12,7 +12,8 @@ import net.neoforged.fml.*;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.config.ModConfig;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
-import net.neoforged.api.distmarker.Dist;
+import net.neoforged.fml.loading.FMLEnvironment;
+import net.neoforged.fml.loading.FMLLoader;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.server.ServerStartedEvent;
 import net.neoforged.neoforge.event.server.ServerStoppedEvent;
@@ -39,7 +40,7 @@ public class ModernFixForge {
         modBus.addListener(this::commonSetup);
         modBus.addListener(this::registerItems);
         modBus.addListener(this::registerNetworkChannel);
-        if(Dist.CLIENT.isClient()) {
+        if(FMLEnvironment.getDist() == Dist.CLIENT) {
             NeoForge.EVENT_BUS.register(new ModernFixClientForge(modContainer, modBus));
         }
         modContainer.registerConfig(ModConfig.Type.COMMON, ModernFixConfig.COMMON_CONFIG);
@@ -65,7 +66,7 @@ public class ModernFixForge {
             event.enqueueWork(() -> {
                 boolean atLeastOneWarning = false;
                 for(Pair<List<String>, String> warning : MOD_WARNINGS) {
-                    boolean isPresent = true || warning.getLeft().stream().anyMatch(name -> ModList.get().isLoaded(name)); // TODO: Fix production check for MC 1.21.9
+                    boolean isPresent = !FMLLoader.getCurrent().isProduction() || warning.getLeft().stream().anyMatch(name -> ModList.get().isLoaded(name));
                     if(!isPresent) {
                         atLeastOneWarning = true;
                         ModLoader.addLoadingIssue(ModLoadingIssue.warning(warning.getRight()));

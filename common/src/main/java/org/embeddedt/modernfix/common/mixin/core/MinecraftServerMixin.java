@@ -17,7 +17,7 @@ public class MinecraftServerMixin implements ITimeTrackingServer {
         return mfix$lastTickStartTime;
     }
 
-    @Inject(method = "tickServer", at = @At("HEAD"))
+    @Inject(method = "runServer", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/MinecraftServer;processPacketsAndTick(Z)V"))
     private void trackTickTime(CallbackInfo ci) {
         mfix$lastTickStartTime = Util.getMillis();
     }

@@ -8,12 +8,10 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.api.distmarker.Dist;
-import net.neoforged.fml.ModList;
 import net.neoforged.fml.ModLoader;
 import net.neoforged.fml.ModLoadingIssue;
-import net.neoforged.api.distmarker.Dist;
+import net.neoforged.fml.loading.FMLLoader;
 import net.neoforged.fml.loading.FMLPaths;
-import net.neoforged.fml.loading.LoadingModList;
 import net.neoforged.fml.loading.TracingPrintStream;
 import net.neoforged.fml.loading.moddiscovery.ModInfo;
 import net.neoforged.neoforge.common.NeoForge;
@@ -36,11 +34,11 @@ import java.util.function.Consumer;
 
 public class ModernFixPlatformHooksImpl implements ModernFixPlatformHooks {
     public boolean isClient() {
-        return Dist.CLIENT.isClient();
+        return FMLLoader.getCurrent().getDist() == Dist.CLIENT;
     }
 
     public boolean isDedicatedServer() {
-        return !Dist.CLIENT.isClient();
+        return FMLLoader.getCurrent().getDist().isDedicatedServer();
     }
 
     private static final String verString = Optional.ofNullable(
@@ -52,12 +50,11 @@ public class ModernFixPlatformHooksImpl implements ModernFixPlatformHooks {
     }
 
     public boolean modPresent(String modId) {
-        var modList = ModList.get();
-        return modList != null && modList.isLoaded(modId);
+        return FMLLoader.getCurrent().getLoadingModList().getModFileById(modId) != null;
     }
 
     public boolean isDevEnv() {
-        return true; // TODO: Fix production check for 1.21.9
+        return !FMLLoader.getCurrent().isProduction();
     }
 
     public MinecraftServer getCurrentServer() {
@@ -65,7 +62,7 @@ public class ModernFixPlatformHooksImpl implements ModernFixPlatformHooks {
     }
 
     public boolean isEarlyLoadingNormally() {
-        var issues = LoadingModList.get().getModLoadingIssues();
+        var issues = FMLLoader.getCurrent().getLoadingModList().getModLoadingIssues();
         if (issues.isEmpty()) {
             return true;
         }
@@ -110,7 +107,7 @@ public class ModernFixPlatformHooksImpl implements ModernFixPlatformHooks {
     public Multimap<String, String> getCustomModOptions() {
         if(modOptions == null) {
             modOptions = ArrayListMultimap.create();
-            for (ModInfo meta : LoadingModList.get().getMods()) {
+            for (ModInfo meta : FMLLoader.getCurrent().getLoadingModList().getMods()) {
                 meta.getConfigElement(IntegrationConstants.INTEGRATIONS_KEY).ifPresent(optionsObj -> {
                     if(optionsObj instanceof Map) {
                         Map<Object, Object> options = (Map<Object, Object>)optionsObj;

@@ -10,27 +10,16 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mojang.serialization.JsonOps;
 import net.minecraft.client.model.geom.EntityModelSet;
+import net.minecraft.client.renderer.PlayerSkinRenderCache;
 import net.minecraft.client.renderer.block.model.*;
 import net.minecraft.client.renderer.item.ClientItem;
 import net.minecraft.client.renderer.item.ItemModel;
 import net.minecraft.client.renderer.item.MissingItemModel;
 import net.minecraft.client.renderer.item.ModelRenderProperties;
+import net.minecraft.client.renderer.texture.SpriteLoader;
 import net.minecraft.client.renderer.texture.TextureAtlas;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
-import net.minecraft.client.renderer.texture.MissingTextureAtlasSprite;
-import net.minecraft.client.renderer.texture.TextureAtlas;
-import net.minecraft.client.resources.model.BlockModelRotation;
-import net.minecraft.client.resources.model.BlockStateDefinitions;
-import net.minecraft.client.resources.model.BlockStateModelLoader;
-import net.minecraft.client.resources.model.Material;
-import net.minecraft.client.resources.model.MissingBlockModel;
-import net.minecraft.client.resources.model.ModelBaker;
-import net.minecraft.client.resources.model.ModelDebugName;
-import net.minecraft.client.resources.model.ModelDiscovery;
-import net.minecraft.client.resources.model.ModelState;
-import net.minecraft.client.resources.model.ResolvedModel;
-import net.minecraft.client.resources.model.SpriteGetter;
-import net.minecraft.client.resources.model.UnbakedModel;
+import net.minecraft.client.resources.model.*;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
@@ -42,6 +31,9 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import org.embeddedt.modernfix.ModernFix;
+import org.embeddedt.modernfix.common.mixin.perf.dynamic_resources.BlockStateDefinitionsAccessor;
+import org.embeddedt.modernfix.common.mixin.perf.dynamic_resources.BlockStateModelLoaderMixin;
+import org.embeddedt.modernfix.common.mixin.perf.dynamic_resources.ModelWrapperInvoker;
 import org.embeddedt.modernfix.duck.IModelHoldingBlockState;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -93,7 +85,6 @@ public class DynamicModelProvider {
      */
 
     private final BlockStateModel missingModel;
-    private final BlockModelPart missingBlockModelPart;
     private final ModelDiscovery.ModelWrapper resolvedMissingModel;
     private final ItemModel missingItemModel;
     private final UnbakedModel unbakedMissingModel;
@@ -102,6 +93,9 @@ public class DynamicModelProvider {
     private final SpriteGetter textureGetter;
     private final EntityModelSet entityModelSet;
     private final ItemModelGenerator itemModelGenerator;
+    private final PlayerSkinRenderCache skinRenderCache;
+    private final MaterialSet materialSet;
+    private final ModelBaker.PartCache partCache;
 
     private final Map<BlockState, BlockStateModel> mrlModelOverrides = new ConcurrentHashMap<>();
     private final Map<Identifier, ItemModel> itemStackModelOverrides = new ConcurrentHashMap<>();
@@ -113,42 +107,64 @@ public class DynamicModelProvider {
     private static final boolean DEBUG_DYNAMIC_MODEL_LOADING = Boolean.getBoolean("modernfix.debugDynamicModelLoading");
 
     public DynamicModelProvider(ResourceManager resourceManager, EntityModelSet entityModelSet,
-                                Map<Identifier, TextureAtlas> atlasMap) {
+                                SpriteLoader.Preparations blockPreparations, SpriteLoader.Preparations itemPreparations,
+                                PlayerSkinRenderCache skinRenderCache, MaterialSet materialSet) {
         this.unbakedMissingModel = MissingBlockModel.missingModel();
         this.entityModelSet = entityModelSet;
-        var blocksAtlas = atlasMap.get(TextureAtlas.LOCATION_BLOCKS);
-        var missing = blocksAtlas.getSprite(MissingTextureAtlasSprite.getLocation());
+        this.skinRenderCache = skinRenderCache;
+        this.materialSet = materialSet;
+        this.partCache = new DynamicPartCache();
+
         this.textureGetter = new SpriteGetter() {
             @Override
-            public TextureAtlasSprite get(Material material, ModelDebugName modelDebugName) {
-                var atlas = atlasMap.get(material.atlasLocation());
-                var sprite = atlas.getSprite(material.texture());
+            public @NotNull TextureAtlasSprite get(Material material, ModelDebugName modelDebugName) {
+                Identifier atlas = material.atlasLocation();
+
+                Boolean blockOrItemAtlas = atlas.equals(ModelManager.BLOCK_OR_ITEM);
+                Boolean itemAtlas = atlas.equals(TextureAtlas.LOCATION_ITEMS);
+                Boolean blockAtlas = atlas.equals(TextureAtlas.LOCATION_BLOCKS);
+
+                TextureAtlasSprite sprite = null;
+
+                if (blockOrItemAtlas || itemAtlas) {
+                    sprite = itemPreparations.getSprite(material.texture());
+                }
+
+                if (sprite == null && (blockOrItemAtlas || blockAtlas)) {
+                    sprite = blockPreparations.getSprite(material.texture());
+                }
+
                 if (sprite != null) {
                     return sprite;
                 } else {
                     ModernFix.LOGGER.warn("Unable to find sprite '{}' referenced by model '{}'", material.texture(), modelDebugName.debugName());
-                    return missing;
+                    if (!blockOrItemAtlas && !blockAtlas && !itemAtlas) {
+                        ModernFix.LOGGER.warn(" -> Requested atlas ID '{}' was not part of the item or block atlas", atlas);
+                    }
+                    return itemAtlas ? itemPreparations.missing() : blockPreparations.missing();
                 }
             }
 
             @Override
-            public TextureAtlasSprite reportMissingReference(String string, ModelDebugName modelDebugName) {
-                return missing;
+            public @NotNull TextureAtlasSprite reportMissingReference(String string, ModelDebugName modelDebugName) {
+                return blockPreparations.missing();
             }
         };
+
         this.stateMapper = BlockStateDefinitions.definitionLocationToBlockStateMapper();
         this.resourceManager = resourceManager;
         this.itemModelGenerator = new ItemModelGenerator();
-        this.resolvedMissingModel = new ModelDiscovery.ModelWrapper(MissingBlockModel.LOCATION, this.unbakedMissingModel, true);
+        this.resolvedMissingModel = ModelWrapperInvoker.mfix$invokeCtor(MissingBlockModel.LOCATION, this.unbakedMissingModel, true);
         var missingModelBaker = new ModelBaker() {
             @Override
-            public ResolvedModel getModel(Identifier resourceLocation) {
+            public ResolvedModel getModel(Identifier Identifier) {
                 throw new IllegalStateException("Missing model should not have dependencies");
             }
 
             @Override
             public BlockModelPart missingBlockModelPart() {
-                throw new IllegalStateException("Missing model should not need missing block model part");
+                // Vanilla also throws an exception in this case
+                throw new IllegalStateException("Asked for missing model's missing model parts!");
             }
 
             @Override
@@ -158,7 +174,7 @@ public class DynamicModelProvider {
 
             @Override
             public PartCache parts() {
-                return vec -> vec;
+                return DynamicModelProvider.this.partCache;
             }
 
             @Override
@@ -169,15 +185,25 @@ public class DynamicModelProvider {
         var textureSlots = this.resolvedMissingModel.getTopTextureSlots();
         var quadCollection = this.resolvedMissingModel.bakeTopGeometry(textureSlots, missingModelBaker, BlockModelRotation.IDENTITY);
         var particleSprite = this.resolvedMissingModel.resolveParticleSprite(textureSlots, missingModelBaker);
-        this.missingBlockModelPart = new BlockModelPart() {
+        this.missingModel = new BlockStateModel() {
             @Override
-            public List<BakedQuad> getQuads(@Nullable Direction direction) {
-                return quadCollection.getQuads(direction);
-            }
+            public void collectParts(RandomSource random, List<BlockModelPart> output) {
+                output.add(new BlockModelPart() {
+                    @Override
+                    public List<BakedQuad> getQuads(@Nullable Direction direction) {
+                        return quadCollection.getQuads(direction);
+                    }
 
-            @Override
-            public boolean useAmbientOcclusion() {
-                return resolvedMissingModel.getTopAmbientOcclusion();
+                    @Override
+                    public boolean useAmbientOcclusion() {
+                        return resolvedMissingModel.getTopAmbientOcclusion();
+                    }
+
+                    @Override
+                    public TextureAtlasSprite particleIcon() {
+                        return particleSprite;
+                    }
+                });
             }
 
             @Override
@@ -185,17 +211,6 @@ public class DynamicModelProvider {
                 return particleSprite;
             }
         };
-        this.missingModel = new BlockStateModel() {
-            @Override
-            public void collectParts(RandomSource random, List<BlockModelPart> output) {
-                output.add(missingBlockModelPart);
-            }
-
-            @Override
-            public TextureAtlasSprite particleIcon() {
-                return particleSprite;
-            }
-        }; //SimpleModelWrapper(quadCollection, resolvedMissingModel.getTopAmbientOcclusion(), particleSprite);
         this.missingItemModel = new MissingItemModel(quadCollection.getAll(), new ModelRenderProperties(resolvedMissingModel.getTopGuiLight().lightLikeBlock(), particleSprite, resolvedMissingModel.getTopTransforms()));
         try {
             Class.forName("net.fabricmc.fabric.api.client.model.loading.v1.ModelLoadingPlugin");
@@ -204,14 +219,40 @@ public class DynamicModelProvider {
         } catch(Exception ignored) {
             // Fabric API likely not present
         }
+
+        // Fix item frames because they use a fake air BlockState
+        Map<Identifier, StateDefinition<Block, BlockState>> static_definitions = BlockStateDefinitionsAccessor.getStaticDefinitions();
+
+        for (var definition : static_definitions.entrySet()) {
+            StateDefinition<Block, BlockState> fakeStateDefinitions = definition.getValue();
+            Identifier identifier = definition.getKey();
+            Identifier modelIdentifier = identifier.withPath("block/"+identifier.getPath());
+
+            Optional<UnbakedModel> unbakedModel = this.loadedBlockModels.getUnchecked(modelIdentifier);
+
+            for (var fakeState : fakeStateDefinitions.getPossibleStates()) {
+                Optional<BlockStateModel> bakedModel = unbakedModel.flatMap(model -> {
+                    var optLoadedModels = this.loadedStateDefinitions.getUnchecked(identifier);
+                    return optLoadedModels
+                            .map(loadedModels -> loadedModels.models().get(fakeState))
+                            .map(unbakedRoot -> this.bakeModel(unbakedRoot, fakeState));
+                });
+
+                if (bakedModel.isPresent()) {
+                    this.mrlModelOverrides.put(fakeState, bakedModel.get());
+                } else {
+                    ModernFix.LOGGER.error(
+                            "Failed to load BlockStateModel for static definition {}, state {}",
+                            identifier, fakeState
+                    );
+                }
+            }
+        }
+        ModernFix.LOGGER.info("Loaded {} BlockState -> BlockStateModel overrides", this.mrlModelOverrides.size());
     }
 
     public BlockStateModel getMissingBakedModel() {
         return this.missingModel;
-    }
-
-    public BlockModelPart getMissingBlockModelPart() {
-        return this.missingBlockModelPart;
     }
 
     public ItemModel getMissingItemModel() {
@@ -438,7 +479,7 @@ public class DynamicModelProvider {
                 ModernFix.LOGGER.error("Failed to load blockstate definition {} from pack '{}'", location, resource.sourcePackId(), e);
             }
         }
-        var loadedModels = new HashMap<>(BlockStateModelLoader.loadBlockStateDefinitionStack(location, stateDefinition, loadedDefinitions).models());
+        var loadedModels = new HashMap<>(BlockStateModelLoaderMixin.mfix$invokeLoadBlockStateDefinitionStack(location, stateDefinition, loadedDefinitions).models());
         if (!pluginList.isEmpty()) {
             loadedModels.replaceAll((mrl, oldModel) -> {
                 BlockStateModel.UnbakedRoot ubm = oldModel;
@@ -538,7 +579,7 @@ public class DynamicModelProvider {
         if (unbakedOpt.isEmpty()) {
             return Optional.empty();
         }
-        ModelDiscovery.ModelWrapper wrapper = new ModelDiscovery.ModelWrapper(location, unbakedOpt.get(), true);
+        ModelDiscovery.ModelWrapper wrapper = ModelWrapperInvoker.mfix$invokeCtor(location, unbakedOpt.get(), true);
         var parent = wrapper.wrapped().parent();
         if (parent != null) {
             Optional<ModelDiscovery.ModelWrapper> resolvedParentOpt;
@@ -585,11 +626,16 @@ public class DynamicModelProvider {
             return Optional.of(override);
         }
         return this.loadedClientItemProperties.getUnchecked(location).map(clientItem -> {
-            var bakingContext = new ItemModel.BakingContext(new DynamicBaker(location::toString), this.entityModelSet, null, null, this.missingItemModel, clientItem.registrySwapper());
+            var bakingContext = new ItemModel.BakingContext(new DynamicBaker(location::toString), this.entityModelSet, this.materialSet, this.skinRenderCache, this.missingItemModel, clientItem.registrySwapper());
             return clientItem.model().bake(bakingContext);
         });
     }
 
+    LoadingCache<BlockState, Optional<BlockStateModel>> getBlockStateCache() {
+        return this.loadedBakedModels;
+    }
+
+    /* IntelliJ says these are unused, commenting them for now
     public BlockStateModel getModel(BlockState location) {
         return this.loadedBakedModels.getUnchecked(location).orElse(this.missingModel);
     }
@@ -602,16 +648,14 @@ public class DynamicModelProvider {
         return this.loadedItemModels.getUnchecked(location).orElse(this.missingItemModel);
     }
 
-    /*
     public BakedModel getStandaloneModel(Identifier location) {
         return this.loadedStandaloneModels.getUnchecked(location).orElse(this.missingModel);
     }
 
-     */
-
     public void addUnbakedBlockStateOverride(BlockState location, BlockStateModel.Unbaked model) {
         this.unbakedBlockStateModelOverrides.put(location, model);
     }
+     */
 
     private class DynamicBaker implements ModelBaker {
         private final ModelDebugName modelDebugName;
@@ -627,9 +671,7 @@ public class DynamicModelProvider {
 
         @Override
         public BlockModelPart missingBlockModelPart() {
-            var parts = new java.util.ArrayList<BlockModelPart>();
-            DynamicModelProvider.this.missingModel.collectParts(net.minecraft.util.RandomSource.create(), parts);
-            return parts.isEmpty() ? null : parts.get(0);
+            return null;
         }
 
         @Override
@@ -639,7 +681,7 @@ public class DynamicModelProvider {
 
         @Override
         public PartCache parts() {
-            return vec -> vec;
+            return partCache;
         }
 
         @Override
