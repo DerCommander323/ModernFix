@@ -23,6 +23,7 @@ import net.minecraft.client.resources.model.*;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
+import net.minecraft.server.packs.resources.PreparableReloadListener;
 import net.minecraft.server.packs.resources.Resource;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.util.GsonHelper;
@@ -108,7 +109,8 @@ public class DynamicModelProvider {
 
     public DynamicModelProvider(ResourceManager resourceManager, EntityModelSet entityModelSet,
                                 SpriteLoader.Preparations blockPreparations, SpriteLoader.Preparations itemPreparations,
-                                PlayerSkinRenderCache skinRenderCache, MaterialSet materialSet) {
+                                PlayerSkinRenderCache skinRenderCache, MaterialSet materialSet,
+                                PreparableReloadListener.SharedState sharedState) {
         this.unbakedMissingModel = MissingBlockModel.missingModel();
         this.entityModelSet = entityModelSet;
         this.skinRenderCache = skinRenderCache;
@@ -214,8 +216,7 @@ public class DynamicModelProvider {
         this.missingItemModel = new MissingItemModel(quadCollection.getAll(), new ModelRenderProperties(resolvedMissingModel.getTopGuiLight().lightLikeBlock(), particleSprite, resolvedMissingModel.getTopTransforms()));
         try {
             Class.forName("net.fabricmc.fabric.api.client.model.loading.v1.ModelLoadingPlugin");
-            // TODO
-            // pluginList.add(new FabricDynamicModelHandler(this, this.resourceManager));
+            pluginList.add(new FabricDynamicModelHandler(this, sharedState));
         } catch(Exception ignored) {
             // Fabric API likely not present
         }
@@ -617,17 +618,27 @@ public class DynamicModelProvider {
         }
     }
 
-    private Optional<ItemModel> loadItemModel(Identifier location) {
+    private Optional<ItemModel> loadItemModel(Identifier identifier) {
         if (DEBUG_DYNAMIC_MODEL_LOADING) {
-            ModernFix.LOGGER.info("Loading item model '{}'", location);
+            ModernFix.LOGGER.info("Loading item model '{}'", identifier);
         }
-        var override = this.itemStackModelOverrides.get(location);
+        var override = this.itemStackModelOverrides.get(identifier);
         if (override != null) {
             return Optional.of(override);
         }
-        return this.loadedClientItemProperties.getUnchecked(location).map(clientItem -> {
-            var bakingContext = new ItemModel.BakingContext(new DynamicBaker(location::toString), this.entityModelSet, this.materialSet, this.skinRenderCache, this.missingItemModel, clientItem.registrySwapper());
-            return clientItem.model().bake(bakingContext);
+        return this.loadedClientItemProperties.getUnchecked(identifier).map(clientItem -> {
+            ItemModel.Unbaked modifiedModel = clientItem.model();
+            var bakingContext = new ItemModel.BakingContext(new DynamicBaker(identifier::toString), this.entityModelSet, this.materialSet, this.skinRenderCache, this.missingItemModel, clientItem.registrySwapper());
+            for (var plugin : this.pluginList) {
+                modifiedModel = plugin.modifyItemModelBeforeBake(clientItem.model(), identifier, bakingContext);
+            }
+
+            var itemModel = modifiedModel.bake(bakingContext);
+            for (var plugin : this.pluginList) {
+                itemModel = plugin.modifyItemModelAfterBake(itemModel, identifier, modifiedModel, bakingContext);
+            }
+
+            return itemModel;
         });
     }
 
@@ -700,8 +711,8 @@ public class DynamicModelProvider {
         Optional<UnbakedModel> modifyModelOnLoad(Optional<UnbakedModel> model, Identifier id);
         BlockStateModel.UnbakedRoot modifyBlockModelOnLoad(BlockStateModel.UnbakedRoot model, BlockState state);
 
-        UnbakedModel modifyModelBeforeBake(UnbakedModel model, Identifier id, ModelState state, ModelBaker baker);
-        //BakedModel modifyModelAfterBake(BakedModel bakedModel, UnbakedModel model, Identifier id, ModelState state, ModelBaker baker);
+        ItemModel.Unbaked modifyItemModelBeforeBake(ItemModel.Unbaked model, Identifier id, ItemModel.BakingContext bakingContext);
+        ItemModel modifyItemModelAfterBake(ItemModel itemModel, Identifier identifier, ItemModel.Unbaked unbaked, ItemModel.BakingContext bakingContext);
 
         BlockStateModel.UnbakedRoot modifyBlockModelBeforeBake(BlockStateModel.UnbakedRoot model, BlockState state, ModelBaker baker);
         BlockStateModel modifyBlockModelAfterBake(BlockStateModel bakedModel, BlockStateModel.UnbakedRoot unbaked, BlockState state, ModelBaker baker);

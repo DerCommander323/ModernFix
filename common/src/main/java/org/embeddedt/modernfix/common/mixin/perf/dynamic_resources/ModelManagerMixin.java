@@ -1,5 +1,6 @@
 package org.embeddedt.modernfix.common.mixin.perf.dynamic_resources;
 
+import com.llamalad7.mixinextras.sugar.Local;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.geom.EntityModelSet;
 import net.minecraft.client.renderer.PlayerSkinRenderCache;
@@ -14,6 +15,7 @@ import net.minecraft.client.resources.model.ClientItemInfoLoader;
 import net.minecraft.client.resources.model.ModelManager;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
+import net.minecraft.server.packs.resources.PreparableReloadListener;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
@@ -79,7 +81,9 @@ public class ModelManagerMixin implements DynamicModelProvider.ModelManagerExten
 
     @ModifyArg(method = "reload", at = @At(value = "INVOKE", target = "Ljava/util/concurrent/CompletableFuture;allOf([Ljava/util/concurrent/CompletableFuture;)Ljava/util/concurrent/CompletableFuture;", ordinal = 1))
     public CompletableFuture<?>[] createModelProviderCommon(
-            CompletableFuture<?>[] futures
+            CompletableFuture<?>[] futures,
+            @Local(argsOnly = true)
+            PreparableReloadListener.SharedState sharedState
     ) {
         // Remember to change these when updating! Otherwise, I doubt the order of the arguments will change
         var itemPreparationsFuture = (CompletableFuture<SpriteLoader.Preparations>) futures[1];
@@ -93,7 +97,8 @@ public class ModelManagerMixin implements DynamicModelProvider.ModelManagerExten
                         blockPreparationsFuture.join(),
                         itemPreparationsFuture.join(),
                         this.playerSkinRenderCache,
-                        this.atlasManager
+                        this.atlasManager,
+                        sharedState
                 );
                 DynamicModelProvider.currentReloadingModelProvider = new WeakReference<>(this.mfix$modelProvider);
             return _void;
