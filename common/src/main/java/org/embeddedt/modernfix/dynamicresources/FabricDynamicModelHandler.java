@@ -127,8 +127,8 @@ public class FabricDynamicModelHandler implements DynamicModelProvider.DynamicMo
     }
 
     @Override
-    public Optional<UnbakedModel> modifyModelOnLoad(Optional<UnbakedModel> model, Identifier id) {
-        return Optional.of(this.onLoadModifiers.invoker().modifyModelOnLoad(model.orElse(null), () -> id));
+    public Optional<UnbakedModel> modifyModelOnLoad(Optional<UnbakedModel> modelOpt, Identifier id) {
+        return modelOpt.map(model -> this.onLoadModifiers.invoker().modifyModelOnLoad(model, () -> id));
     }
 
     @Override
